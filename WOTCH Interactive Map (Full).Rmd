@@ -1,9 +1,20 @@
 ---
-title: "WOTCH Interactive Map [Full]"
-output: html_notebook
+title: "WOTCH Interactive Map"
+author: Justin Cally
+output:
+  html_document:
+    toc: true # table of content true
+    toc_float: true # make 
+    depth: 3  # upto three depths of headings (specified by #, ## and ###)
+    number_sections: false  ## if you want number sections at each table header
+    theme: yeti # lovely fonts and colours
+    code_folding: show # awesome buttons to show/hide the code
+  pdf_document: default
 ---
 
-Load packages
+
+##Load packages
+
 ```{r, warning = FALSE, message=FALSE}
 #load leaflet and other packages
 library(leaflet)
@@ -21,9 +32,11 @@ library(rmapshaper)
 # install_git('https://github.com/consbio/Leaflet.HtmlLegend')
 ```
 
+##Load Data
+
 Load data from species records and shapefiles (sourced from VicData and Vicforests, then simplified/dissolved in mapshaper)
 
-```{r}
+```{r, warning=FALSE, message = FALSE}
 #Read in LBP csv
 LBPdata <- read.csv('data/LBP Records.csv')
 
@@ -48,6 +61,7 @@ logging.dissolve <- readOGR("data/Logging_Dissolve/lastlog25.shp")
 TRP.dissolve <- readOGR("data/TRP_Dissolve/out.shp")
 ```
 
+##Make Icons
 
 Make Icons for LBP, YBG and GG
 ```{r}
@@ -85,7 +99,7 @@ GeebungIcon <- makeIcon(
 
 
 
-Create map with all features
+##Create map with all features
 
 Map that allows us to show/hide layers
 
@@ -134,10 +148,11 @@ LBPmap <- LBPmap %>% hideGroup(c("200 m buffer", "1 km buffer", "Yellow-bellied 
 LBPmap
 ```
 
-Save as html
+##Save as html
+
 ```{r}
 library(htmlwidgets)
-saveWidget(LBPmap, file="LBPmap.html")
+saveWidget(LBPmap, file="index.html")
 ```
 
 
