@@ -1,0 +1,144 @@
+---
+title: "WOTCH Interactive Map [Full]"
+output: html_notebook
+---
+
+Load packages
+```{r, warning = FALSE, message=FALSE}
+#load leaflet and other packages
+library(leaflet)
+library(dplyr)
+
+#Load htmltools
+library(htmltools)
+
+#Load spatial packages
+library(rgdal)
+library(rmapshaper)
+
+# library(devtools)
+# install_git('https://github.com/yohanboniface/Leaflet.TileLegend')
+# install_git('https://github.com/consbio/Leaflet.HtmlLegend')
+```
+
+Load data from species records and shapefiles (sourced from VicData and Vicforests, then simplified/dissolved in mapshaper)
+
+```{r}
+#Read in LBP csv
+LBPdata <- read.csv('data/LBP Records.csv')
+
+#Read in LBP csv
+YBGdata <- read.csv('data/YBG Records.csv')
+
+#Read in GG
+GGdata <- read.csv('data/GG Records.csv')
+
+#Read in Tree Geebung
+Geebungdata <- read.csv('data/Geebung Records.csv')
+
+#Have to use external map shaper as r map shaper cannot handle polygons?
+fire.dissolve <- readOGR("data/Fire_Dissolve/fire_sev09_poly.shp")
+
+#From using dissolve2 in mapshaper we decrease file size. Now lets run this for all of our polygons 
+
+#Logging
+logging.dissolve <- readOGR("data/Logging_Dissolve/lastlog25.shp")
+
+#TRP
+TRP.dissolve <- readOGR("data/TRP_Dissolve/out.shp")
+```
+
+
+Make Icons for LBP, YBG and GG
+```{r}
+#For YBG
+YBGIcon <- makeIcon(
+  iconUrl = "data/Icons/YBGIcon.png",
+  iconWidth = 50, iconHeight = 50,
+  iconAnchorX = 25, iconAnchorY = 50
+)
+
+#For GG
+GGIcon <- makeIcon(
+  iconUrl = "data/Icons/GGIcon.png",
+  iconWidth = 50, iconHeight = 50,
+  iconAnchorX = 25, iconAnchorY = 50
+)
+
+#For LBP
+LBPIcon <- makeIcon(
+  iconUrl = "data/Icons/LBPIcon.png",
+  iconWidth = 50, iconHeight = 50,
+  iconAnchorX = 25, iconAnchorY = 50
+)
+
+#For Geebubng 
+
+GeebungIcon <- makeIcon(
+  iconUrl = "data/Icons/geebung2.png",
+  iconWidth = 50, iconHeight = 50,
+  iconAnchorX = 25, iconAnchorY = 50
+)
+
+```
+
+
+
+
+Create map with all features
+
+Map that allows us to show/hide layers
+
+```{r, fig.width=10, fig.height=10}
+
+LBPmap <- leaflet(data = LBPdata) %>% 
+  fitBounds(lng1 = 145.04356384277344, lat1 = -37.20298773974218, lng2 = 146.48483276367188, lat2 = -38.132396186022945) %>%
+  #Base groups
+  addProviderTiles(providers$OpenStreetMap.Mapnik, group = "Basic (default)") %>%
+  addProviderTiles(providers$OpenTopoMap, group = "Topographic") %>%
+  addProviderTiles(providers$Esri.WorldImagery, group = "Satellite") %>%
+  
+  ##Overlay groups
+  
+  #Leadbeater's Circles and Icons
+  addMarkers(~lng, ~lat, label = ~species, icon = LBPIcon, group = "Leadbeater's Possum") %>%
+  addCircles(~lng, ~lat, radius = 200, color = 'blue', label = ~species, group = "200 m buffer") %>%
+  addCircles(~lng, ~lat, radius = 1000, color = 'red', label = ~species, group = "1 km buffer") %>%
+
+  
+  #Polygons for logging and fire
+  addPolygons(data = fire.dissolve, color = 'red', group = "2009 bushfires") %>%
+  addPolygons(data = logging.dissolve, color = 'grey', opacity = 0.4, group = "Historic Logging") %>%
+  addPolygons(data = TRP.dissolve, color = 'black', group = "Timber Release Plan 2017") %>%
+  
+  #Icons for YBG and GG
+  addMarkers(data = YBGdata, ~lng, ~lat, label = ~species, icon = YBGIcon, group = "Yellow-bellied Glider") %>%
+  addMarkers(data = GGdata, ~lng, ~lat, label = ~species, icon = GGIcon, group = "Greater Glider") %>%
+  
+  #Icons or Tree Geebung
+  addMarkers(data = Geebungdata, ~lng, ~lat, label = ~Species, icon = GeebungIcon, group = "Tree Geebung") %>%
+  
+  #Additional features
+  addScaleBar(position = "bottomright") %>%
+  
+  
+  #layers Control
+  addLayersControl(
+    baseGroups = c("Basic (default)", "Topographic", "Satellite"),
+    overlayGroups = c("Leadbeater's Possum", "200 m buffer", "1 km buffer", "Yellow-bellied Glider", "2009 bushfires", "Historic Logging", "Timber Release Plan 2017", "Greater Glider", "Tree Geebung"),
+    options = layersControlOptions(collapsed = FALSE)
+  )
+LBPmap <- LBPmap %>% hideGroup(c("200 m buffer", "1 km buffer", "Yellow-bellied Glider", "2009 bushfires", "Historic Logging", "Timber Release Plan 2017", "Greater Glider", "Tree Geebung"))
+
+#Plot map
+LBPmap
+```
+
+Save as html
+```{r}
+library(htmlwidgets)
+saveWidget(LBPmap, file="LBPmap.html")
+```
+
+
+
