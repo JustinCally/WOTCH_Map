@@ -15,10 +15,16 @@ output:
 
 ##Load packages
 
+Start off by loading the **required** packages. The main package we use in this build is ``leaflet``, which is a prettyh _tidy_ package. 
+
 ```{r, warning = FALSE, message=FALSE}
 #load leaflet and other packages
+# devtools::install_github('rstudio/leaflet')
 library(leaflet)
 library(dplyr)
+library(kableExtra)
+library(pander)
+library(knitr)
 
 #Load htmltools
 library(htmltools)
@@ -36,7 +42,7 @@ library(rmapshaper)
 
 Load data from species records and shapefiles (sourced from VicData and Vicforests, then simplified/dissolved in mapshaper)
 
-```{r, warning=FALSE, message = FALSE}
+```{r, warning=FALSE, message = FALSE, results='hide'}
 #Read in LBP csv
 LBPdata <- read.csv('data/LBP Records.csv')
 
@@ -59,7 +65,45 @@ logging.dissolve <- readOGR("data/Logging_Dissolve/lastlog25.shp")
 
 #TRP
 TRP.dissolve <- readOGR("data/TRP_Dissolve/out.shp")
+
+
+#Read in key coupe shapes and details 
+
+#Blue Vein Key Coupe
+Blue.Vein <- readOGR('data/Key_Coupes/Blue_Vein.shp')
+
+#Spreadsheet
+Key.coupes <- read.csv('data/significant_coupes.csv')
+
 ```
+
+###Inspect LBP data
+
+**As usual head**
+
+```{r}
+head(LBPdata)
+```
+
+**Nicer format**
+
+```{r}
+kable(LBPdata, "html") %>%
+  kable_styling() %>%
+  scroll_box(width = "800px", height = "500px")
+```
+
+##Normal table
+```{r}
+table(LBPdata$Method)
+```
+
+##Pander table
+
+```{r}
+table(LBPdata$Method) %>% pander()
+```
+
 
 ##Make Icons
 
@@ -111,6 +155,44 @@ LBPmap <- leaflet(data = LBPdata) %>%
   addProviderTiles(providers$OpenStreetMap.Mapnik, group = "Basic (default)") %>%
   addProviderTiles(providers$OpenTopoMap, group = "Topographic") %>%
   addProviderTiles(providers$Esri.WorldImagery, group = "Satellite") %>%
+
+  #Our Successes
+  
+  addPolygons(data = Blue.Vein, color = "#444444", weight = 1, smoothFactor = 0.5,
+    opacity = 1.0, fillOpacity = 0.75, fillColor = "#60843a", group = "Our Successes",
+    highlightOptions = highlightOptions(color = "white", weight = 2.5,
+      bringToFront = TRUE),
+    label = htmltools::HTML(
+        "<div style='font-size:12px;font-weight:normal;width:340px;float:left'>
+            <span style='font-size:18px;font-weight:bold'>Blue Vein</span><br/>
+
+WOTCH supporters are the reason scheduled logging in <br/>
+coupe 'Blue Vein' were suspended until an extensive <br/>
+survey had been conducted by VicForests. They lobbied <br/>
+Lily D’Ambrosio until the department was pressured <br/>
+to defer logging until a survey was conducted. This <br/>
+area of ancient Mountain Ash forest is within gliding <br/>
+distance of one of the Central Highlands biggest tourist <br/>
+attractions, the Ada tree. With 8 Leadbeater's Possum <br/>
+colonies sighted within 1km of this coupe, it is a <br/>
+major hotspot and a key stronghold for the survival <br/>
+of our Faunal Emblem.<br/>
+<br/>
+
+<a data-flickr-embed='true'  href='https://www.flickr.com/photos/137459769@N03/41673635494/in/dateposted-public/' title='Blue Vein leadie'><img src='https://farm1.staticflickr.com/893/41673635494_d72319bdab_z.jpg' width='330' height='220' alt='Blue Vein leadie'></a><script async src='//embedr.flickr.com/assets/client-code.js' charset='utf-8'></script>
+        </div>"
+        ),
+    labelOptions = labelOptions(
+      noHide = F,
+      offset = c(0,-10),
+      direction='top',
+      style=list(
+        'background'='rgba(255,255,255,0.95)',
+        'border-color' = 'rgba(0,0,0,1)',
+        'border-radius' = '4px',
+        'border-style' = 'solid',
+        'border-width' = '4px',
+        'close-button' = 'true'))) %>%
   
   ##Overlay groups
   
@@ -124,7 +206,7 @@ LBPmap <- leaflet(data = LBPdata) %>%
   addPolygons(data = fire.dissolve, color = 'red', group = "2009 bushfires") %>%
   addPolygons(data = logging.dissolve, color = 'grey', opacity = 0.4, group = "Historic Logging") %>%
   addPolygons(data = TRP.dissolve, color = 'black', group = "Timber Release Plan 2017") %>%
-  
+
   #Icons for YBG and GG
   addMarkers(data = YBGdata, ~lng, ~lat, label = ~species, icon = YBGIcon, group = "Yellow-bellied Glider") %>%
   addMarkers(data = GGdata, ~lng, ~lat, label = ~species, icon = GGIcon, group = "Greater Glider") %>%
@@ -139,10 +221,10 @@ LBPmap <- leaflet(data = LBPdata) %>%
   #layers Control
   addLayersControl(
     baseGroups = c("Basic (default)", "Topographic", "Satellite"),
-    overlayGroups = c("Leadbeater's Possum", "200 m buffer", "1 km buffer", "Yellow-bellied Glider", "2009 bushfires", "Historic Logging", "Timber Release Plan 2017", "Greater Glider", "Tree Geebung"),
+    overlayGroups = c("Our Successes","Leadbeater's Possum", "200 m buffer", "1 km buffer", "Yellow-bellied Glider", "2009 bushfires", "Historic Logging", "Timber Release Plan 2017", "Greater Glider", "Tree Geebung"),
     options = layersControlOptions(collapsed = FALSE)
   )
-LBPmap <- LBPmap %>% hideGroup(c("200 m buffer", "1 km buffer", "Yellow-bellied Glider", "2009 bushfires", "Historic Logging", "Timber Release Plan 2017", "Greater Glider", "Tree Geebung"))
+LBPmap <- LBPmap %>% hideGroup(c("Leadbeater's Possum", "200 m buffer", "1 km buffer", "Yellow-bellied Glider", "2009 bushfires", "Historic Logging", "Timber Release Plan 2017", "Greater Glider", "Tree Geebung"))
 
 #Plot map
 LBPmap
