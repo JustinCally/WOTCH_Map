@@ -93,12 +93,7 @@ kable(LBPdata, "html") %>%
   scroll_box(width = "800px", height = "500px")
 ```
 
-##Normal table
-```{r}
-table(LBPdata$Method)
-```
-
-##Pander table
+##Method of Search
 
 ```{r}
 table(LBPdata$Method) %>% pander()
@@ -156,10 +151,10 @@ LBPmap <- leaflet(data = LBPdata) %>%
   addProviderTiles(providers$OpenTopoMap, group = "Topographic") %>%
   addProviderTiles(providers$Esri.WorldImagery, group = "Satellite") %>%
 
-  #Our Successes
+  #Our Impact
   
   addPolygons(data = Blue.Vein, color = "#444444", weight = 1, smoothFactor = 0.5,
-    opacity = 1.0, fillOpacity = 0.75, fillColor = "#60843a", group = "Our Successes",
+    opacity = 1.0, fillOpacity = 0.75, fillColor = "#60843a", group = "Our Impact",
     highlightOptions = highlightOptions(color = "white", weight = 2.5,
       bringToFront = TRUE),
     label = htmltools::HTML(
@@ -197,7 +192,7 @@ of our Faunal Emblem.<br/>
   ##Overlay groups
   
   #Leadbeater's Circles and Icons
-  addMarkers(~lng, ~lat, label = ~species, icon = LBPIcon, group = "Leadbeater's Possum") %>%
+  addMarkers(~lng, ~lat, label = ~common.name, icon = LBPIcon, group = "Leadbeater's Possum") %>%
   addCircles(~lng, ~lat, radius = 200, color = 'blue', label = ~species, group = "200 m buffer") %>%
   addCircles(~lng, ~lat, radius = 1000, color = 'red', label = ~species, group = "1 km buffer") %>%
 
@@ -221,7 +216,7 @@ of our Faunal Emblem.<br/>
   #layers Control
   addLayersControl(
     baseGroups = c("Basic (default)", "Topographic", "Satellite"),
-    overlayGroups = c("Our Successes","Leadbeater's Possum", "200 m buffer", "1 km buffer", "Yellow-bellied Glider", "2009 bushfires", "Historic Logging", "Timber Release Plan 2017", "Greater Glider", "Tree Geebung"),
+    overlayGroups = c("Our Impact","Leadbeater's Possum", "200 m buffer", "1 km buffer", "Yellow-bellied Glider", "2009 bushfires", "Historic Logging", "Timber Release Plan 2017", "Greater Glider", "Tree Geebung"),
     options = layersControlOptions(collapsed = FALSE)
   )
 LBPmap <- LBPmap %>% hideGroup(c("Leadbeater's Possum", "200 m buffer", "1 km buffer", "Yellow-bellied Glider", "2009 bushfires", "Historic Logging", "Timber Release Plan 2017", "Greater Glider", "Tree Geebung"))
