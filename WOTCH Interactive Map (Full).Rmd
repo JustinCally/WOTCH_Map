@@ -66,6 +66,8 @@ logging.dissolve <- readOGR("data/Logging_Dissolve/lastlog25.shp")
 #TRP
 TRP.dissolve <- readOGR("data/TRP_Dissolve/out.shp")
 
+#Central Highlands RFA
+RFA <- readOGR(fil.choose())
 
 #Read in key coupe shapes and details 
 
@@ -209,6 +211,11 @@ of our Faunal Emblem.<br/>
   #Icons or Tree Geebung
   addMarkers(data = Geebungdata, ~lng, ~lat, label = ~Species, icon = GeebungIcon, group = "Tree Geebung") %>%
   
+  #Add Central Highlands RFA
+  addPolylines(data = RFA, 
+               color = "black",  
+               group = "Central Highlands RFA") %>%
+  
   #Additional features
   addScaleBar(position = "bottomright") %>%
   
@@ -216,7 +223,7 @@ of our Faunal Emblem.<br/>
   #layers Control
   addLayersControl(
     baseGroups = c("Basic (default)", "Topographic", "Satellite"),
-    overlayGroups = c("Our Impact","Leadbeater's Possum", "200 m buffer", "1 km buffer", "Yellow-bellied Glider", "2009 bushfires", "Historic Logging", "Timber Release Plan 2017", "Greater Glider", "Tree Geebung"),
+    overlayGroups = c("Our Impact","Leadbeater's Possum", "200 m buffer", "1 km buffer", "Yellow-bellied Glider", "2009 bushfires", "Historic Logging", "Timber Release Plan 2017", "Greater Glider", "Tree Geebung", "Central Highlands RFA"),
     options = layersControlOptions(collapsed = FALSE)
   )
 LBPmap <- LBPmap %>% hideGroup(c("Leadbeater's Possum", "200 m buffer", "1 km buffer", "Yellow-bellied Glider", "2009 bushfires", "Historic Logging", "Timber Release Plan 2017", "Greater Glider", "Tree Geebung"))
