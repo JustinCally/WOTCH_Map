@@ -19,19 +19,22 @@ Start off by loading the **required** packages. The main package we use in this 
 
 ```{r, warning = FALSE, message=FALSE}
 #load leaflet and other packages
-# devtools::install_github('rstudio/leaflet')
+#devtools::install_github('rstudio/leaflet')
 library(leaflet)
 library(dplyr)
 library(kableExtra)
 library(pander)
 library(knitr)
+library(ggplot2)
 
 #Load htmltools
 library(htmltools)
+library(htmlwidgets)
 
 #Load spatial packages
 library(rgdal)
 library(rmapshaper)
+library(geojsonio)
 
 # library(devtools)
 # install_git('https://github.com/yohanboniface/Leaflet.TileLegend')
@@ -45,12 +48,25 @@ Load data from species records and shapefiles (sourced from VicData and Vicfores
 ```{r, warning=FALSE, message = FALSE, results='hide'}
 #Read in LBP csv
 LBPdata <- read.csv('data/LBP Records.csv')
+LBPdata$STARTDATE <- as.Date.character(LBPdata$STARTDATE, format = "%d/%m/%y")
 
 #Read in LBP csv
 YBGdata <- read.csv('data/YBG Records.csv')
 
 #Read in GG
 GGdata <- read.csv('data/GG Records.csv')
+
+#Read in 2019 GG data 
+GGdata_2019 <- read.csv('data/GG_2019.csv')
+
+GGdata_2019_format <- data.frame(species = "Petauroides volans",
+                                 common.name = "Greater Glider",
+                                 lng = GGdata_2019$X,
+                                 lat = GGdata_2019$Y, 
+                                 date = as.Date(GGdata_2019$time),
+                                 method = "active",
+                                 Coupe.Number = as.character(NA),
+                                 Coupe.Name = as.character(NA))
 
 #Read in Tree Geebung
 Geebungdata <- read.csv('data/Geebung Records.csv')
@@ -66,8 +82,13 @@ logging.dissolve <- readOGR("data/Logging_Dissolve/lastlog25.shp")
 #TRP
 TRP.dissolve <- readOGR("data/TRP_Dissolve/out.shp")
 
+#TRP 2019
+Approved_TRP_2019 <-  readOGR("data/Approved_TRP_2019/Approved_TRP_Boundaries__April_2019.shp", stringsAsFactors = F )
+#Reformat to TRP.dissolve@proj4string
+Approved_TRP_2019 <- spTransform(x = Approved_TRP_2019, CRSobj = TRP.dissolve@proj4string)
+
 #Central Highlands RFA
-RFA <- readOGR(fil.choose())
+RFA <- readOGR("/Users/justincally/Documents/GFNP/WOTCH_Map/data/RFA/rfa25_NAME__CENTRAL HIGHLANDS.shp")
 
 #Read in key coupe shapes and details 
 
@@ -87,18 +108,24 @@ Key.coupes <- read.csv('data/significant_coupes.csv')
 head(LBPdata)
 ```
 
-**Nicer format**
+<!-- **Nicer format** -->
 
-```{r}
-kable(LBPdata, "html") %>%
-  kable_styling() %>%
-  scroll_box(width = "800px", height = "500px")
-```
+<!-- ```{r} -->
+<!-- kable(LBPdata, "html") %>% -->
+<!--   kable_styling() %>% -->
+<!--   scroll_box(width = "800px", height = "500px") -->
+<!-- ``` -->
 
 ##Method of Search
 
 ```{r}
-table(LBPdata$Method) %>% pander()
+table(LBPdata$Survey.Method) %>% pander()
+```
+
+
+```{r}
+LBPdata %>% ggplot(aes(x = STARTDATE))+
+  geom_histogram()
 ```
 
 
@@ -156,7 +183,7 @@ LBPmap <- leaflet(data = LBPdata) %>%
   #Our Impact
   
   addPolygons(data = Blue.Vein, color = "#444444", weight = 1, smoothFactor = 0.5,
-    opacity = 1.0, fillOpacity = 0.75, fillColor = "#60843a", group = "Our Impact",
+    opacity = 1.0, fillOpacity = 0.75, fillColor = "#756bb1", group = "Our Impact",
     highlightOptions = highlightOptions(color = "white", weight = 2.5,
       bringToFront = TRUE),
     label = htmltools::HTML(
@@ -191,18 +218,160 @@ of our Faunal Emblem.<br/>
         'border-width' = '4px',
         'close-button' = 'true'))) %>%
   
+  
+   addCircles(lng = 145.62983414531834, lat = -37.561564948494286, radius = 1000, color = "#444444", weight = 1,
+    opacity = 1.0, fillOpacity = 0.75, fillColor = "#756bb1", group = "Our Impact",
+    highlightOptions = highlightOptions(color = "white", weight = 2.5,
+      bringToFront = TRUE),
+    label = htmltools::HTML( 
+"<div style='font-size:12px;font-weight:normal;width:340px;float:left'>
+            <span style='font-size:18px;font-weight:bold'>Hermitage Creek</span><br/>
+
+A collaborative effort by WOTCH and FFRC recorded a <br/>
+high density of Greater Gliders and significant hollow <br/>
+bearing trees within coupe 307-505-0012. With added <br/>
+pressure from Friends of the Earth and the community <br/>
+getting behind it, Lily D’Ambrosio spoke out on Twitter, <br/>
+stating that ‘No High Quality Greater Glider habitat will <br/>
+be harvested in ‘Kings’ coupe 307-505-0012. Following this, <br/>
+the logging machines left the area.<br/>
+<br/>
+        </div>"
+        ),
+    labelOptions = labelOptions(
+      noHide = F,
+      offset = c(0,-10),
+      direction='top',
+      style=list(
+        'background'='rgba(255,255,255,0.95)',
+        'border-color' = 'rgba(0,0,0,1)',
+        'border-radius' = '4px',
+        'border-style' = 'solid',
+        'border-width' = '4px'))) %>%
+  
+     addCircles(lng = 145.5076652493134, lat = -37.51075719952928, radius = 1000, color = "#444444", weight = 1,
+    opacity = 1.0, fillOpacity = 0.75, fillColor = "#756bb1", group = "Our Impact",
+    highlightOptions = highlightOptions(color = "white", weight = 2.5,
+      bringToFront = TRUE),
+    label = htmltools::HTML( 
+"<div style='font-size:12px;font-weight:normal;width:340px;float:left'>
+            <span style='font-size:18px;font-weight:bold'>Freddo</span><br/>
+
+‘Freddo’ hosts some of the best Leadbeater’s Possum <br/>
+habitat in Toolangi’s Yea-Link Valley, and has therefore <br/>
+had a lot of campaigning attention in the past. Previous <br/>
+Campaigning included a tree sit (Little Red Toolangi <br/>
+Treehouse), a court case and friendly protests along <br/>
+Sylvia Creek Rd, which proved to be worthwhile when WOTCH <br/>
+recorded its first Leadbeater’s Possum within the centre <br/>
+of the ‘Freddo’ coupe in 2015.<br/>
+<br/>
+
+        </div>"
+        ),
+    labelOptions = labelOptions(
+      noHide = F,
+      offset = c(0,-10),
+      direction='top',
+      style=list(
+        'background'='rgba(255,255,255,0.95)',
+        'border-color' = 'rgba(0,0,0,1)',
+        'border-radius' = '4px',
+        'border-style' = 'solid',
+        'border-width' = '4px'))) %>%
+  
   ##Overlay groups
   
   #Leadbeater's Circles and Icons
   addMarkers(~lng, ~lat, label = ~common.name, icon = LBPIcon, group = "Leadbeater's Possum") %>%
-  addCircles(~lng, ~lat, radius = 200, color = 'blue', label = ~species, group = "200 m buffer") %>%
-  addCircles(~lng, ~lat, radius = 1000, color = 'red', label = ~species, group = "1 km buffer") %>%
+  addCircles(~lng, ~lat, radius = 200, color = '#543005', label = ~species, group = "200 m Buffer") %>%
+  addCircles(~lng, ~lat, radius = 1000, color = '#dfc27d', label = ~species, group = "1 km Recommended Buffer") %>%
 
   
   #Polygons for logging and fire
-  addPolygons(data = fire.dissolve, color = 'red', group = "2009 bushfires") %>%
+  addPolygons(data = fire.dissolve, color = '#ff7f00', group = "2009 Bushfires") %>%
+  addPolygons(data = logging.dissolve, color = '#999999', opacity = 0.4, group = "Historic Logging") %>%
+  addPolygons(data = TRP.dissolve, color = '#35978f', group = "Timber Release Plan 2017") %>%
+  addPolygons(data = Approved_TRP_2019, color = '#003c30', group = "Timber Release Plan 2019") %>%
+
+  #Icons for YBG and GG
+  addMarkers(data = YBGdata, ~lng, ~lat, label = ~species, icon = YBGIcon, group = "Yellow-bellied Glider") %>%
+  addMarkers(data = GGdata, ~lng, ~lat, label = ~species, icon = GGIcon, group = "Greater Glider") %>%
+  addMarkers(data = GGdata_2019_format, ~lng, ~lat, label = ~species, icon = GGIcon, group = "Greater Glider") %>%
+  
+  #Icons or Tree Geebung
+  addMarkers(data = Geebungdata, ~lng, ~lat, label = ~Species, icon = GeebungIcon, group = "Tree Geebung") %>%
+  
+  #Add Central Highlands RFA
+  addPolylines(data = RFA, 
+               color = "black",  
+               group = "Central Highlands RFA") %>%
+  
+  #Additional features
+  addScaleBar(position = "bottomright") %>%
+  
+  
+  #layers Control
+  addLayersControl(
+    baseGroups = c("Basic (default)", "Topographic", "Satellite"),
+    overlayGroups = c("Our Impact","Leadbeater's Possum", "200 m Buffer", "1 km Recommended Buffer", "Yellow-bellied Glider", "2009 Bushfires", "Historic Logging", "Timber Release Plan 2017", "Timber Release Plan 2019", "Greater Glider", "Tree Geebung", "Central Highlands RFA"),
+    options = layersControlOptions(collapsed = FALSE)
+  )
+LBPmap <- LBPmap %>% hideGroup(c("Leadbeater's Possum", "200 m Buffer", "1 km Recommended Buffer", "Yellow-bellied Glider", "2009 Bushfires", "Historic Logging", "Timber Release Plan 2017", "Tree Geebung"))
+
+#Plot map
+LBPmap
+```
+
+
+```{r}
+
+LBPdata.timeline <- LBPdata %>% rename(start = STARTDATE)
+# set start same as end
+#  adjust however you would like
+LBPdata.timeline$end <- max(LBPdata.timeline$start)
+
+
+# use geojsonio to convert our data.frame
+#  to GeoJSON which timeline expects
+power_geo <- geojson_json(LBPdata.timeline,lat="lat",lon="lng", pretty = T)
+
+# create a leaflet map on which we will build
+leaf <- leaflet(data = LBPdata) %>%
+  addTiles()
+
+# add leaflet-timeline as a dependency
+#  to get the js and css
+leaf$dependencies[[length(leaf$dependencies)+1]] <- htmlDependency(
+  name = "leaflet-timeline",
+  version = "1.0.0",
+  src = c("href" = "http://skeate.github.io/Leaflet.timeline/"),
+  script = "javascripts/leaflet.timeline.js",
+  stylesheet = "stylesheets/leaflet.timeline.css"
+)
+
+# use the new onRender in htmlwidgets to run
+#  this code once our leaflet map is rendered
+#  I did not spend time perfecting the leaflet-timeline
+#  options
+saveWidget(leaf %>%
+    fitBounds(lng1 = 145.04356384277344, lat1 = -37.20298773974218, lng2 = 146.48483276367188, lat2 = -38.132396186022945) %>%
+    addProviderTiles(providers$OpenStreetMap.Mapnik, group = "Basic (default)") %>%
+  addProviderTiles(providers$OpenTopoMap, group = "Topographic") %>%
+  addProviderTiles(providers$Esri.WorldImagery, group = "Satellite") %>%
+  
+     ##Overlay groups
+  
+  #Leadbeater's Circles and Icons
+  addMarkers(~lng, ~lat, label = ~common.name, icon = LBPIcon, group = "Leadbeater's Possum") %>%
+  addCircles(~lng, ~lat, radius = 200, color = 'blue', label = ~species, group = "200 m Buffer") %>%
+  addCircles(~lng, ~lat, radius = 1000, color = 'red', label = ~species, group = "1 km Recommended Buffer") %>%
+
+  
+  #Polygons for logging and fire
+  addPolygons(data = fire.dissolve, color = 'red', group = "2009 Bushfires") %>%
   addPolygons(data = logging.dissolve, color = 'grey', opacity = 0.4, group = "Historic Logging") %>%
-  addPolygons(data = TRP.dissolve, color = 'black', group = "Timber Release Plan 2017") %>%
+  addPolygons(data = TRP.dissolve, color = 'black', opacity = 0.25, group = "Timber Release Plan 2017") %>%
 
   #Icons for YBG and GG
   addMarkers(data = YBGdata, ~lng, ~lat, label = ~species, icon = YBGIcon, group = "Yellow-bellied Glider") %>%
@@ -223,14 +392,48 @@ of our Faunal Emblem.<br/>
   #layers Control
   addLayersControl(
     baseGroups = c("Basic (default)", "Topographic", "Satellite"),
-    overlayGroups = c("Our Impact","Leadbeater's Possum", "200 m buffer", "1 km buffer", "Yellow-bellied Glider", "2009 bushfires", "Historic Logging", "Timber Release Plan 2017", "Greater Glider", "Tree Geebung", "Central Highlands RFA"),
+    overlayGroups = c("Leadbeater's Possum", "200 m Buffer", "1 km Recommended Buffer", "Yellow-bellied Glider", "2009 Bushfires", "Historic Logging", "Timber Release Plan 2017", "Greater Glider", "Tree Geebung", "Central Highlands RFA"),
     options = layersControlOptions(collapsed = FALSE)
-  )
-LBPmap <- LBPmap %>% hideGroup(c("Leadbeater's Possum", "200 m buffer", "1 km buffer", "Yellow-bellied Glider", "2009 bushfires", "Historic Logging", "Timber Release Plan 2017", "Greater Glider", "Tree Geebung"))
+  ) %>%
+  hideGroup(c("Leadbeater's Possum", "200 m Buffer", "1 km Recommended Buffer", "Yellow-bellied Glider", "2009 Bushfires", "Historic Logging", "Timber Release Plan 2017", "Greater Glider", "Tree Geebung")) %>%
+  
+    onRender(sprintf(
+        '
+        function(el,x){
+        var power_data = %s;
 
-#Plot map
-LBPmap
+        var timelineControl = L.timelineSliderControl({
+        formatOutput: function(date) {
+            return new Date(date).toLocaleDateString();
+          }
+        });
+
+        var timeline = L.timeline(power_data, {
+        pointToLayer: function(data, latlng){
+        var hue_min = 240;
+        var hue_max = 0;
+        var hue = hue_min;
+        return L.circle(latlng, {
+        radius: 200,
+        color: "hsl("+hue+", 100%%, 50%%)",
+        fillColor: "hsl("+hue+", 100%%, 50%%)"
+        });
+        },
+        steps: 500,
+        duration: 100,
+        formatDate: "",
+        showTicks: true
+        });
+        timelineControl.addTo(HTMLWidgets.find(".leaflet").getMap());
+        timelineControl.addTimelines(timeline);
+        timeline.addTo(HTMLWidgets.find(".leaflet").getMap());
+        }
+        ',
+        power_geo
+    )), "LBP_timeline.html")
+
 ```
+
 
 ##Save as html
 
@@ -239,5 +442,70 @@ library(htmlwidgets)
 saveWidget(LBPmap, file="index.html")
 ```
 
+```{r}
+
+library(shiny)
+library(leaflet)
+library(dplyr)
+
+# Define UI for application that draws a map
+# loading the data. It has the timestamp, lon, lat, and the accuracy (size of circles)
+
+ui <- bootstrapPage(
+  tags$style(type = "text/css", "html, body {width:100%;height:100%}"),
+  leafletOutput("mapAct", width = "100%", height = "100%"),
+  absolutePanel(top = 10, right = 10,
+  sliderInput("animation", "Time:",
+              min = min(LBPdata.timeline$start, na.rm = T),
+              max = max(LBPdata.timeline$start, na.rm = T),
+              value = min(LBPdata.timeline$start),
+              timezone = "+0200",
+              animate =
+                animationOptions(interval = 30, loop = TRUE))
+  )
+                
+  )
+
+
+# Define server logic required
+server <- function(input, output) {
+  #stuff in server
+  filteredData <- reactive({
+    #add rollified thing
+    from<- input$animation-9000
+    till<- input$animation
+    LBPdata.timeline %>% filter(start >= from & start <=  till)
+  })
+  
+  output$mapAct<-renderLeaflet({
+    leaflet() %>%
+      addTiles() %>%
+      addProviderTiles(providers$CartoDB.Positron)%>%
+      fitBounds(lng1 = 145.04356384277344, lat1 = -37.20298773974218, lng2 = 146.48483276367188, lat2 = -38.132396186022945)# set to reactive minimums
+  })
+  
+  observe({
+    leafletProxy("mapAct", data = filteredData()) %>%
+      clearShapes() %>%
+  addProviderTiles(providers$OpenStreetMap.Mapnik, group = "Basic (default)") %>%
+  addPolygons(data = TRP.dissolve, color = 'black', opacity = 0.25, group = "Timber Release Plan 2017") %>%
+  
+  #Leadbeater's Circles and Icons
+  addMarkers(~lng, ~lat, label = ~common.name, icon = LBPIcon, group = "Leadbeater's Possum") %>%
+
+  #Add Central Highlands RFA
+  addPolylines(data = RFA, 
+               color = "black",  
+               group = "Central Highlands RFA") %>%
+  
+  #Additional features
+  addScaleBar(position = "bottomright")
+  })
+  
+}
+
+# Run the application 
+shinyApp(ui = ui, server = server)
+```
 
 
