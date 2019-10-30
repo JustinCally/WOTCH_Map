@@ -15,7 +15,7 @@ output:
 
 ##Load packages
 
-Start off by loading the **required** packages. The main package we use in this build is ``leaflet``, which is a prettyh _tidy_ package. 
+Start off by loading the **required** packages. The main package we use in this build is ``leaflet``. 
 
 ```{r, warning = FALSE, message=FALSE}
 #load leaflet and other packages
@@ -30,11 +30,21 @@ library(ggplot2)
 #Load htmltools
 library(htmltools)
 library(htmlwidgets)
+library(sf)
 
 #Load spatial packages
 library(rgdal)
 library(rmapshaper)
 library(geojsonio)
+# install.packages('jsonify')
+# install.packages('geojsonsf')
+# devtools::install_github("SymbolixAU/jsonify" )
+# devtools::install_github("r-spatial/leafgl" )
+library('leafgl')
+library(colourvalues)
+library(htmlwidgets)
+library(lwgeom)
+
 
 # library(devtools)
 # install_git('https://github.com/yohanboniface/Leaflet.TileLegend')
@@ -54,7 +64,7 @@ LBPdata$STARTDATE <- as.Date.character(LBPdata$STARTDATE, format = "%d/%m/%y")
 YBGdata <- read.csv('data/YBG Records.csv')
 
 #Read in GG
-GGdata <- read.csv('data/GG Records.csv')
+#GGdata <- read.csv('data/GG Records.csv')
 
 #Read in 2019 GG data 
 GGdata_2019 <- read.csv('data/GG_2019.csv')
@@ -64,31 +74,45 @@ GGdata_2019_format <- data.frame(species = "Petauroides volans",
                                  lng = GGdata_2019$X,
                                  lat = GGdata_2019$Y, 
                                  date = as.Date(GGdata_2019$time),
-                                 method = "active",
+                                 method = "Active",
                                  Coupe.Number = as.character(NA),
                                  Coupe.Name = as.character(NA))
+
+GGdata <- GGdata_2019_format
 
 #Read in Tree Geebung
 Geebungdata <- read.csv('data/Geebung Records.csv')
 
 #Have to use external map shaper as r map shaper cannot handle polygons?
-fire.dissolve <- readOGR("data/Fire_Dissolve/fire_sev09_poly.shp")
-
+fire.dissolve <- st_read("data/Fire_Dissolve/fire_sev09_poly.shp", stringsAsFactors = F) %>% st_cast(to = "POLYGON")
+#single polygon:
+# fire <- st_read("data/Fire_2009/fire_sev09_poly.shp", stringsAsFactors = F)
+# fire <- ms_simplify(fire, keep = 0.001) %>% st_cast(to = "POLYGON")
 #From using dissolve2 in mapshaper we decrease file size. Now lets run this for all of our polygons 
 
-#Logging
-logging.dissolve <- readOGR("data/Logging_Dissolve/lastlog25.shp")
-
 #TRP
-TRP.dissolve <- readOGR("data/TRP_Dissolve/out.shp")
+TRP.dissolve <- st_read("data/TRP_Dissolve/out.shp", stringsAsFactors = F) %>% st_cast(to = "POLYGON")
+TRP.dissolve <- readOGR("data/TRP_Dissolve/out.shp", stringsAsFactors = F)
+
+#Central Highlands RFA
+RFA <- readOGR("/Users/justincally/Documents/GFNP/WOTCH_Map/data/RFA/rfa25_NAME__CENTRAL HIGHLANDS.shp") 
+RFA <- spTransform(x = RFA, CRSobj = TRP.dissolve@proj4string) 
 
 #TRP 2019
 Approved_TRP_2019 <-  readOGR("data/Approved_TRP_2019/Approved_TRP_Boundaries__April_2019.shp", stringsAsFactors = F )
 #Reformat to TRP.dissolve@proj4string
-Approved_TRP_2019 <- spTransform(x = Approved_TRP_2019, CRSobj = TRP.dissolve@proj4string)
+Approved_TRP_2019 <- spTransform(x = Approved_TRP_2019, CRSobj = TRP.dissolve@proj4string) 
 
-#Central Highlands RFA
-RFA <- readOGR("/Users/justincally/Documents/GFNP/WOTCH_Map/data/RFA/rfa25_NAME__CENTRAL HIGHLANDS.shp")
+Approved_TRP_2019 <- Approved_TRP_2019[RFA, ] %>% rmapshaper::ms_simplify()
+
+# Approved_TRP_2019 <- ms_simplify(Approved_TRP_2019, keep = 0.01)
+
+#Logging
+logging.dissolve <- readOGR("data/Logging_Dissolve/lastlog25.shp", stringsAsFactors = F)
+logging.dissolve <- spTransform(logging.dissolve, CRSobj = TRP.dissolve@proj4string)
+logging.dissolve <- logging.dissolve[RFA, ] %>% rmapshaper::ms_simplify()
+
+# Approved_TRP_2019_simple <- st_read("data/Approved_TRP_2019/Approved_TRP_Boundaries__April_2019.shp", stringsAsFactors = F) %>% st_cast(to = "POLYGON")
 
 #Read in key coupe shapes and details 
 
@@ -120,12 +144,6 @@ head(LBPdata)
 
 ```{r}
 table(LBPdata$Survey.Method) %>% pander()
-```
-
-
-```{r}
-LBPdata %>% ggplot(aes(x = STARTDATE))+
-  geom_histogram()
 ```
 
 
@@ -172,13 +190,27 @@ GeebungIcon <- makeIcon(
 Map that allows us to show/hide layers
 
 ```{r, fig.width=10, fig.height=10}
+cols_logging = colour_values_rgb(sqrt(Approved_TRP_2019_simple$Shape__Are), include_alpha = FALSE, palette = "viridis") / 255
+cols_grey = colour_values_rgb(1, include_alpha = FALSE, palette = "greys") / 255
+cols_fire = colour_values_rgb(rnorm(nrow(fire.dissolve), 5, 0.2), include_alpha = FALSE, palette = "inferno") / 255
 
-LBPmap <- leaflet(data = LBPdata) %>% 
-  fitBounds(lng1 = 145.04356384277344, lat1 = -37.20298773974218, lng2 = 146.48483276367188, lat2 = -38.132396186022945) %>%
+LBPmap <- leaflet(data = LBPdata, options = leafletOptions(preferCanvas = FALSE)) %>% 
+  addProviderTiles(providers$OpenStreetMap.Mapnik, 
+                   group = "Basic", 
+                   options = providerTileOptions(updateWhenIdle = TRUE, 
+                                                 detectRetina = TRUE)) %>% 
+  fitBounds(lng1 = 145.04356384277344, 
+            lat1 = -37.20298773974218, 
+            lng2 = 146.48483276367188, 
+            lat2 = -38.132396186022945) %>%
   #Base groups
-  addProviderTiles(providers$OpenStreetMap.Mapnik, group = "Basic (default)") %>%
-  addProviderTiles(providers$OpenTopoMap, group = "Topographic") %>%
-  addProviderTiles(providers$Esri.WorldImagery, group = "Satellite") %>%
+  
+  # addProviderTiles(providers$OpenStreetMap.Mapnik, group = "Basic (default)", options = providerTileOptions(
+  # updateWhenZooming = FALSE,      # map won't update tiles until zoom is done
+  # updateWhenIdle = FALSE)) %>%         # map won't load new tiles when panning
+
+  # addProviderTiles(providers$OpenTopoMap, group = "Topographic") %>%
+  # addProviderTiles(providers$Esri.WorldImagery, group = "Satellite") %>%
 
   #Our Impact
   
@@ -217,13 +249,13 @@ of our Faunal Emblem.<br/>
         'border-style' = 'solid',
         'border-width' = '4px',
         'close-button' = 'true'))) %>%
-  
-  
+
+
    addCircles(lng = 145.62983414531834, lat = -37.561564948494286, radius = 1000, color = "#444444", weight = 1,
     opacity = 1.0, fillOpacity = 0.75, fillColor = "#756bb1", group = "Our Impact",
     highlightOptions = highlightOptions(color = "white", weight = 2.5,
       bringToFront = TRUE),
-    label = htmltools::HTML( 
+    label = htmltools::HTML(
 "<div style='font-size:12px;font-weight:normal;width:340px;float:left'>
             <span style='font-size:18px;font-weight:bold'>Hermitage Creek</span><br/>
 
@@ -248,12 +280,12 @@ the logging machines left the area.<br/>
         'border-radius' = '4px',
         'border-style' = 'solid',
         'border-width' = '4px'))) %>%
-  
+
      addCircles(lng = 145.5076652493134, lat = -37.51075719952928, radius = 1000, color = "#444444", weight = 1,
     opacity = 1.0, fillOpacity = 0.75, fillColor = "#756bb1", group = "Our Impact",
     highlightOptions = highlightOptions(color = "white", weight = 2.5,
       bringToFront = TRUE),
-    label = htmltools::HTML( 
+    label = htmltools::HTML(
 "<div style='font-size:12px;font-weight:normal;width:340px;float:left'>
             <span style='font-size:18px;font-weight:bold'>Freddo</span><br/>
 
@@ -283,21 +315,33 @@ of the ‘Freddo’ coupe in 2015.<br/>
   ##Overlay groups
   
   #Leadbeater's Circles and Icons
-  addMarkers(~lng, ~lat, label = ~common.name, icon = LBPIcon, group = "Leadbeater's Possum") %>%
-  addCircles(~lng, ~lat, radius = 200, color = '#543005', label = ~species, group = "200 m Buffer") %>%
-  addCircles(~lng, ~lat, radius = 1000, color = '#dfc27d', label = ~species, group = "1 km Recommended Buffer") %>%
+  addMarkers(data = LBPdata, ~lng, ~lat, label = ~common.name, icon = LBPIcon, group = "Leadbeater's Possum") %>%
+  addCircles(~lng, ~lat, radius = 200, color = 'DarkGreen', label = ~species, group = "200 m Buffer") %>%
+  addCircles(~lng, ~lat, radius = 1000, color = '#cb181d', label = ~species, group = "1 km Recommended Buffer") %>%
 
   
   #Polygons for logging and fire
-  addPolygons(data = fire.dissolve, color = '#ff7f00', group = "2009 Bushfires") %>%
+  addPolygons(data = fire.dissolve, color = "DarkOrange", group = "2009 Bushfires") %>%
   addPolygons(data = logging.dissolve, color = '#999999', opacity = 0.4, group = "Historic Logging") %>%
-  addPolygons(data = TRP.dissolve, color = '#35978f', group = "Timber Release Plan 2017") %>%
-  addPolygons(data = Approved_TRP_2019, color = '#003c30', group = "Timber Release Plan 2019") %>%
+  # addPolygons(data = TRP.dissolve, color = cols_logging, group = "Timber Release Plan 2017") %>%
+  addPolygons(data = Approved_TRP_2019, color = "Black", group = "Timber Release Plan 2019", opacity = 1) %>%
 
   #Icons for YBG and GG
   addMarkers(data = YBGdata, ~lng, ~lat, label = ~species, icon = YBGIcon, group = "Yellow-bellied Glider") %>%
-  addMarkers(data = GGdata, ~lng, ~lat, label = ~species, icon = GGIcon, group = "Greater Glider") %>%
-  addMarkers(data = GGdata_2019_format, ~lng, ~lat, label = ~species, icon = GGIcon, group = "Greater Glider") %>%
+  addMarkers(data = GGdata, ~lng, ~lat, label = ~species, icon = GGIcon, group = "Greater Glider", 
+             clusterOptions = markerClusterOptions(zoomToBoundsOnClick = TRUE, 
+                                                   spiderfyOnMaxZoom = TRUE, 
+                                                   showCoverageOnHover = TRUE,
+             iconCreateFunction = JS("function(cluster) {
+      var count = cluster.getChildCount();
+      var digits = (count+'').length;
+      return new L.divIcon({
+        html: count,
+        className:'cluster digits-'+digits,
+        iconSize: null
+      });
+    }"))) %>%
+  #addMarkers(data = GGdata_2019_format, ~lng, ~lat, label = ~species, icon = GGIcon, group = "Greater Glider") %>%
   
   #Icons or Tree Geebung
   addMarkers(data = Geebungdata, ~lng, ~lat, label = ~Species, icon = GeebungIcon, group = "Tree Geebung") %>%
@@ -313,14 +357,13 @@ of the ‘Freddo’ coupe in 2015.<br/>
   
   #layers Control
   addLayersControl(
-    baseGroups = c("Basic (default)", "Topographic", "Satellite"),
-    overlayGroups = c("Our Impact","Leadbeater's Possum", "200 m Buffer", "1 km Recommended Buffer", "Yellow-bellied Glider", "2009 Bushfires", "Historic Logging", "Timber Release Plan 2017", "Timber Release Plan 2019", "Greater Glider", "Tree Geebung", "Central Highlands RFA"),
+    overlayGroups = c("Greater Glider", "Our Impact","Leadbeater's Possum", "200 m Buffer", "1 km Recommended Buffer", "Yellow-bellied Glider", "2009 Bushfires", "Historic Logging", "Timber Release Plan 2019", "Tree Geebung", "Central Highlands RFA"),
     options = layersControlOptions(collapsed = FALSE)
   )
-LBPmap <- LBPmap %>% hideGroup(c("Leadbeater's Possum", "200 m Buffer", "1 km Recommended Buffer", "Yellow-bellied Glider", "2009 Bushfires", "Historic Logging", "Timber Release Plan 2017", "Tree Geebung"))
+LBPmap <- LBPmap %>% hideGroup(c("200 m Buffer", "1 km Recommended Buffer", "Yellow-bellied Glider", "2009 Bushfires", "Historic Logging", "Tree Geebung"))
 
 #Plot map
-LBPmap
+#LBPmap
 ```
 
 
@@ -438,8 +481,18 @@ saveWidget(leaf %>%
 ##Save as html
 
 ```{r}
-library(htmlwidgets)
-saveWidget(LBPmap, file="index.html")
+saveWidget(LBPmap, file="index.html", selfcontained = TRUE)
+# library(shiny)
+# 
+# ui <- fluidPage(
+#   leafglOutput("mymap")
+# )
+# 
+# server <- function(input, output, session) {
+#   output$mymap <- renderLeaflet(LBPmap)
+# }
+# 
+# shinyApp(ui, server)
 ```
 
 ```{r}
@@ -506,6 +559,101 @@ server <- function(input, output) {
 
 # Run the application 
 shinyApp(ui = ui, server = server)
+```
+
+
+```{r}
+#Note that the following needs to be added to the MarkerCluster.Default.css file: in the leaflet plugins: /Library/Frameworks/R.framework/Versions/3.2/Resources/library/leaflet/htmlwidgets/plugins/Leaflet.markercluster
+
+# .marker-cluster {
+# 	background-clip: padding-box;
+# 	border-radius: 20px;
+# 	}
+# .marker-cluster div {
+# 	width: 30px;
+# 	height: 30px;
+# 	margin-left: 5px;
+# 	margin-top: 5px;
+# 
+# 	text-align: center;
+# 	border-radius: 15px;
+# 	font: 12px "Helvetica Neue", Arial, Helvetica, sans-serif;
+# 	}
+# .marker-cluster span {
+# 	line-height: 30px;
+# 	}
+# 	
+# .cluster {
+#     background: #2d84c8;
+#     border-radius: 50%;
+#     text-align: center;
+#     color: white;
+#     font-weight: 700;
+#     border: 1px solid #2d84c8;
+#     font-family: monospace;
+#   }
+# 
+#   .cluster:before {
+#      content: ' ';
+#      position: absolute;
+#      border-radius: 50%;
+#      z-index: -1;
+#      top: 1px;
+#      left: 1px;
+#      right: 1px;
+#      bottom: 1px;
+#      border: 1px solid white;
+#   }
+# 
+#   .digits-1 {
+#     font-size: 14px;
+#     height: 28px;
+#     width: 28px;
+#     line-height: 28px;
+#     margin-top: -14px;
+#     margin-left: -14px;
+#   }
+# 
+#   .digits-2 {
+#     font-size: 16px;
+#     height: 34px;
+#     width: 34px;
+#     line-height: 35px;
+#     margin-top: -17px;
+#     margin-left: -17px;
+#   }
+# 
+#   .digits-2:before {
+#     border-width: 2px;
+#   }
+# 
+#   .digits-3 {
+#     font-size: 18px;
+#     height: 48px;
+#     width: 47px;
+#     line-height: 47px;
+#     border-width: 3px;
+#     margin-top: -24px;
+#     margin-left: -24px;
+#   }
+# 
+#   .digits-3:before {
+#     border-width: 3px;
+#   }
+# 
+#   .digits-4 {
+#     font-size: 18px;
+#     height: 58px;
+#     width: 58px;
+#     line-height: 57px;
+#     border-width: 4px;
+#     margin-top: -29px;
+#     margin-left: -29px;
+#   }
+# 
+#   .digits-4:before {
+#     border-width: 4px;
+#   }
 ```
 
 

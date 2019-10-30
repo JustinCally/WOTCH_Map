@@ -24,6 +24,7 @@ register_google(readLines("API_key"), account_type = "standard")
 # install_git('https://github.com/consbio/Leaflet.HtmlLegend')
 
 GG_detections <- readOGR("data/Southern_Baw_Baw_GG_sightings.gpx")
+
 GG.df <- GG_detections@coords %>% as.data.frame() %>% `colnames<-`(c("long", "lat"))
 GG.df <- GG_detections@coords %>% as.data.frame() %>% `colnames<-`(c("long", "lat")) %>% mutate(col = "Greater Glider")
 
@@ -31,6 +32,7 @@ GG.df <- GG_detections@coords %>% as.data.frame() %>% `colnames<-`(c("long", "la
 #TRP
 TRP.dissolve <- st_read("data/TRP_Dissolve/out.shp", stringsAsFactors = F) %>% st_cast(to = "POLYGON")
 TRP.dissolve <- readOGR("data/TRP_Dissolve/out.shp", stringsAsFactors = F)
+
 logging.dissolve <- readOGR("data/Logging_Dissolve/lastlog25.shp")
 
 #TRP 2019
@@ -70,9 +72,11 @@ x_map +
   geom_polygon(aes(x = long, 
                    y = lat, 
                    group = group, 
+
                    fill = col,
                    alpha = col),
                colour = 'white', 
+
                data = TRP_df) +
   
   geom_point(aes(x = long, y = lat, colour = col), 
@@ -83,6 +87,7 @@ x_map +
              size = 2.5,
              alpha = 0.75) +
   scale_fill_manual(name = NULL,
+
                     values = c("Logging Coupe \n(2019 TRP)" = "Grey",
                                "Logging History" = "#ef3b2c",
                                "Greater Glider" = "#6a51a3"))+
@@ -100,3 +105,4 @@ x_map +
 #ggsave(filename = paste0("maps/", names(x_map), ".pdf"), plot = plot, device = cairo_pdf, width = 6, height = 6)
 })
 plot[1]
+
